@@ -1,0 +1,7 @@
+{
+  "crons": [
+    { "path": "/api/cron/weekly-update", "schedule": "0 4 * * 1" },
+    { "path": "/api/cron/scoutastic-sync", "schedule": "0 4 * * *" },
+    { "path": "/api/cron/scoutastic-sync", "schedule": "0 5 * * *" }
+  ]
+}

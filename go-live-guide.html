@@ -1,0 +1,926 @@
+<title>Go Live Runbook</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #f7f5f1;
+    --surface: #ffffff;
+    --surface-2: #f0ece3;
+    --border: #e2dccd;
+    --text: #1a1712;
+    --text-muted: #6b6459;
+    --text-faint: #9a9284;
+    --red: #c9160f;
+    --red-ink: #ffffff;
+    --gold: #a97a12;
+    --gold-soft: #f4e6c4;
+    --yellow-soft: #fff6cf;
+    --terminal-bg: #17140f;
+    --terminal-text: #ece6d8;
+    --code-inline-bg: #efe8d6;
+    --shadow: 0 1px 2px rgba(30, 24, 10, 0.06), 0 8px 24px -12px rgba(30, 24, 10, 0.18);
+    --focus: #1a63c9;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #100e0a;
+      --surface: #1a1712;
+      --surface-2: #211d16;
+      --border: #332d21;
+      --text: #f2ede1;
+      --text-muted: #ab9f8c;
+      --text-faint: #7c7264;
+      --red: #ef4038;
+      --red-ink: #150402;
+      --gold: #e9b646;
+      --gold-soft: #3a2d10;
+      --yellow-soft: #2b2510;
+      --terminal-bg: #0b0906;
+      --terminal-text: #e9e2d0;
+      --code-inline-bg: #2a251a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #100e0a;
+    --surface: #1a1712;
+    --surface-2: #211d16;
+    --border: #332d21;
+    --text: #f2ede1;
+    --text-muted: #ab9f8c;
+    --text-faint: #7c7264;
+    --red: #ef4038;
+    --red-ink: #150402;
+    --gold: #e9b646;
+    --gold-soft: #3a2d10;
+    --yellow-soft: #2b2510;
+    --terminal-bg: #0b0906;
+    --terminal-text: #e9e2d0;
+    --code-inline-bg: #2a251a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.6);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.6;
+  }
+  ::selection { background: var(--gold-soft); }
+
+  a { color: var(--red); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  code, kbd {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.87em;
+    background: var(--code-inline-bg);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  h1, h2, h3 { text-wrap: balance; font-family: 'Oswald', 'Public Sans', sans-serif; letter-spacing: 0.01em; }
+
+  /* ---------- shell layout ---------- */
+  .shell {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    max-width: 1240px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .nav { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  }
+
+  /* ---------- sidebar ---------- */
+  .nav {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 20px 40px;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .nav-crest {
+    width: 30px; height: 34px; flex-shrink: 0;
+  }
+  .nav-brand-text {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 14.5px;
+    letter-spacing: 0.03em;
+    line-height: 1.15;
+  }
+  .nav-brand-text span {
+    display: block;
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .nav-sub {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin: 14px 0 20px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .progress-track {
+    height: 4px;
+    background: var(--surface-2);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--gold);
+    transition: width 0.25s ease;
+  }
+  .progress-label {
+    font-size: 11px;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 18px;
+  }
+
+  .nav-list { list-style: none; margin: 0; padding: 0; }
+  .nav-list li a {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    padding: 7px 8px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 13.2px;
+    font-weight: 500;
+  }
+  .nav-list li a:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+  .nav-list li a.active { background: var(--surface-2); color: var(--text); }
+  .nav-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--red);
+    width: 1.4em;
+    flex-shrink: 0;
+  }
+  .nav-list .nav-group-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--text-faint);
+    margin: 18px 0 6px 8px;
+  }
+  .nav-list .nav-group-label:first-child { margin-top: 0; }
+
+  /* ---------- main content ---------- */
+  main { padding: 40px 48px 120px; min-width: 0; }
+  @media (max-width: 640px) { main { padding: 28px 20px 90px; } }
+
+  .masthead {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding-bottom: 22px;
+    margin-bottom: 34px;
+    border-bottom: 2px solid var(--text);
+  }
+  .masthead h1 {
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 700;
+    margin: 0 0 6px;
+    line-height: 1.05;
+  }
+  .masthead .kicker {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--red);
+    font-weight: 600;
+  }
+  .masthead .lede { color: var(--text-muted); max-width: 46ch; margin-top: 8px; font-size: 14.5px; }
+  .masthead .meta {
+    display: flex;
+    gap: 20px;
+    font-size: 12.5px;
+    color: var(--text-faint);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .masthead .meta strong { color: var(--text); font-weight: 600; }
+
+  .callout {
+    background: var(--yellow-soft);
+    border: 1px solid var(--gold);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 38px;
+    font-size: 13.8px;
+  }
+  .callout strong { color: var(--gold); }
+
+  section.step {
+    padding: 34px 0;
+    border-bottom: 1px solid var(--border);
+    scroll-margin-top: 20px;
+  }
+  section.step:last-of-type { border-bottom: none; }
+
+  .step-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    margin-bottom: 14px;
+  }
+  .step-numeral {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 34px;
+    color: var(--red);
+    line-height: 1;
+    min-width: 46px;
+  }
+  .step-title h2 {
+    font-size: 21px;
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+  .step-title .step-sub {
+    font-size: 13px;
+    color: var(--text-faint);
+  }
+
+  .step-body { padding-left: 64px; }
+  @media (max-width: 560px) { .step-body { padding-left: 0; } .step-head { flex-direction: column; gap: 6px; } }
+
+  .step-body p { margin: 0 0 14px; }
+  .step-body ul, .step-body ol { margin: 0 0 14px; padding-left: 22px; }
+  .step-body li { margin-bottom: 6px; }
+
+  .kv-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 4px 0;
+    margin: 16px 0;
+  }
+  .kv-row {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-row .kv-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    padding-top: 2px;
+  }
+  .kv-row.expect .kv-label { color: var(--gold); }
+
+  .terminal {
+    background: var(--terminal-bg);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    margin: 16px 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .terminal-bar span {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #514a3c;
+  }
+  .terminal-bar span:nth-child(1) { background: #e5544c; }
+  .terminal-bar span:nth-child(2) { background: #dcb448; }
+  .terminal-bar span:nth-child(3) { background: #5fae5c; }
+  .terminal-label {
+    margin-left: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: #7c7364;
+    letter-spacing: 0.04em;
+  }
+  .terminal pre {
+    margin: 0;
+    padding: 14px 16px 16px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--terminal-text);
+  }
+  .terminal .prompt { color: #6f9e5c; user-select: none; }
+  .terminal .out { color: #8b8272; }
+  .copy-btn {
+    all: unset;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: #9a9080;
+    padding: 4px 9px;
+    border-radius: 5px;
+    margin-left: auto;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.08); color: #ece6d8; }
+  .copy-btn.copied { color: #7fd07a; }
+
+  table.envtable { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13.2px; }
+  table.envtable th, table.envtable td {
+    text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top;
+  }
+  table.envtable th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); font-weight: 600; }
+  table.envtable td:first-child code { white-space: nowrap; }
+  .table-wrap { overflow-x: auto; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .badge.opt { color: var(--gold); border-color: var(--gold); }
+
+  .note {
+    font-size: 13px;
+    color: var(--text-muted);
+    border-left: 3px solid var(--border);
+    padding: 4px 0 4px 14px;
+    margin: 14px 0;
+  }
+  .note.warn { border-left-color: var(--red); }
+  .note.warn strong { color: var(--red); }
+
+  /* ---------- checklist ---------- */
+  .checklist-section {
+    margin-top: 8px;
+    padding-top: 40px;
+  }
+  .checklist-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .checklist-head h2 {
+    font-size: 26px;
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+  .checklist-progress {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .checklist-progress strong { color: var(--gold); font-size: 15px; }
+
+  .check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 15px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    user-select: none;
+  }
+  .check-item input { position: absolute; opacity: 0; pointer-events: none; }
+  .check-box {
+    width: 20px; height: 20px;
+    border-radius: 5px;
+    border: 1.5px solid var(--text-faint);
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .check-item input:checked + .check-box {
+    background: var(--gold);
+    border-color: var(--gold);
+  }
+  .check-box svg { width: 13px; height: 13px; opacity: 0; transition: opacity 0.15s; }
+  .check-item input:checked + .check-box svg { opacity: 1; }
+  .check-text { font-size: 13.8px; line-height: 1.55; }
+  .check-item.checked .check-text { color: var(--text-faint); text-decoration: line-through; text-decoration-color: var(--text-faint); }
+  .check-item:hover { border-color: var(--gold); }
+
+  .done-banner {
+    display: none;
+    margin-top: 18px;
+    padding: 16px 18px;
+    background: var(--gold-soft);
+    border: 1px solid var(--gold);
+    border-radius: 10px;
+    font-size: 14px;
+  }
+  .done-banner.show { display: block; }
+  .done-banner strong { color: var(--gold); }
+
+  footer.page-footer {
+    margin-top: 50px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+</style>
+
+<div class="shell">
+  <nav class="nav" aria-label="Guide sections">
+    <div class="nav-brand">
+      <svg class="nav-crest" viewBox="0 0 100 116" role="img" aria-label="KV Mechelen crest placeholder">
+        <path d="M50 2 L94 16 V54 C94 84 74 104 50 114 C26 104 6 84 6 54 V16 Z" fill="var(--terminal-bg)" stroke="var(--red)" stroke-width="4"/>
+        <path d="M50 8 L88 20 V54 C88 80 71 98 50 107 C29 98 12 80 12 54 V20 Z" fill="#ffe500"/>
+        <path d="M50 8 V107 C71 98 88 80 88 54 V20 Z" fill="var(--red)"/>
+        <text x="50" y="66" text-anchor="middle" font-family="Oswald, Arial, sans-serif" font-weight="700" font-size="34" fill="#0d0d0d">KVM</text>
+      </svg>
+      <div class="nav-brand-text">GO LIVE RUNBOOK<span>Scouting Hub Deployment</span></div>
+    </div>
+    <div class="nav-sub">A click-by-click path from the zip file to a live, private <code>vercel.app</code> URL.</div>
+
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">0 / 12 checked off</div>
+
+    <ul class="nav-list">
+      <li class="nav-group-label">Setup</li>
+      <li><a href="#prereq"><span class="nav-num">00</span>Before you start</a></li>
+      <li class="nav-group-label">The 10 steps</li>
+      <li><a href="#step-1"><span class="nav-num">01</span>Create your account</a></li>
+      <li><a href="#step-2"><span class="nav-num">02</span>The project files</a></li>
+      <li><a href="#step-3"><span class="nav-num">03</span>Connect to Vercel</a></li>
+      <li><a href="#step-4"><span class="nav-num">04</span>Create the database</a></li>
+      <li><a href="#step-5"><span class="nav-num">05</span>Environment variables</a></li>
+      <li><a href="#step-6"><span class="nav-num">06</span>The Scoutastic token</a></li>
+      <li><a href="#step-7"><span class="nav-num">07</span>Daily 06:00 sync</a></li>
+      <li><a href="#step-8"><span class="nav-num">08</span>Confirm persistence</a></li>
+      <li><a href="#step-9"><span class="nav-num">09</span>Keep it private</a></li>
+      <li><a href="#step-10"><span class="nav-num">10</span>Get the live URL</a></li>
+      <li class="nav-group-label">Finish</li>
+      <li><a href="#checklist"><span class="nav-num">✓</span>Final checklist</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="masthead">
+      <div>
+        <div class="kicker">KV Mechelen Scouting Hub</div>
+        <h1>Go live, step by step</h1>
+        <p class="lede">Everything from unzipping the project to a working, private, daily-syncing dashboard — written for someone who has never deployed a website before.</p>
+      </div>
+      <div class="meta">
+        <span><strong>~15–20 min</strong><br>total time</span>
+        <span><strong>1</strong><br>account needed</span>
+        <span><strong>10</strong><br>steps</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Shortest path:</strong> one Vercel account. The Postgres database (Neon) is created automatically through Vercel in Step 4 — you never sign up anywhere else.
+    </div>
+
+    <section class="step" id="prereq">
+      <div class="step-head">
+        <div class="step-numeral">00</div>
+        <div class="step-title">
+          <h2>Before you start</h2>
+          <div class="step-sub">Install Node.js — the one piece of software everything below runs through</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <ol>
+          <li>Go to <a href="https://nodejs.org" target="_blank" rel="noopener">nodejs.org</a> and click the green <strong>"Download Node.js (LTS)"</strong> button.</li>
+          <li>Open the installer, click Next/Continue through it, keeping every default.</li>
+        </ol>
+        <div class="note">
+          <strong>What's "a terminal"?</strong> A plain text window for typing commands instead of clicking buttons — you'll need it for a handful of short copy-paste steps below.<br>
+          <strong>Mac:</strong> <kbd>Cmd</kbd> + <kbd>Space</kbd>, type <code>Terminal</code>, Enter. &nbsp; <strong>Windows:</strong> Start key, type <code>PowerShell</code>, Enter.
+        </div>
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">terminal</span><button class="copy-btn" data-copy="node -v">copy</button></div>
+          <pre><span class="prompt">$</span> node -v
+<span class="out">v22.11.0</span>  <span class="out">← seeing a version number like this means you're ready</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" id="step-1">
+      <div class="step-head">
+        <div class="step-numeral">01</div>
+        <div class="step-title">
+          <h2>Where you create an account</h2>
+          <div class="step-sub">Just one — Vercel</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Go to <a href="https://vercel.com/signup" target="_blank" rel="noopener">vercel.com/signup</a> and sign up. "Continue with Email" or "Continue with GitHub" both work — pick whichever is easier. You do <strong>not</strong> need a GitHub account for anything else in this guide.</p>
+        <div class="kv-block">
+          <div class="kv-row expect"><div class="kv-label">Expect</div><div>Your empty Vercel dashboard — an "Overview" page with no projects on it yet.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" id="step-2">
+      <div class="step-head">
+        <div class="step-numeral">02</div>
+        <div class="step-title">
+          <h2>What you upload/import</h2>
+          <div class="step-sub">There's no upload button — just unzip</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Unzip <code>kvmechelen-scouting-hub.zip</code> somewhere easy to find, like your Desktop. You get a folder named <code>scouting-dashboard</code> — that's the entire project. You won't open, edit, or individually upload anything inside it; one command in Step 3 sends the whole folder to Vercel at once.</p>
+        <div class="kv-block">
+          <div class="kv-row expect"><div class="kv-label">Expect</div><div>A <code>scouting-dashboard</code> folder containing <code>src</code>, <code>public</code>, <code>docs</code>, <code>scripts</code>, <code>package.json</code>, <code>vercel.json</code>.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" id="step-3">
+      <div class="step-head">
+        <div class="step-numeral">03</div>
+        <div class="step-title">
+          <h2>Connect the project to Vercel</h2>
+          <div class="step-sub">The one part that uses the terminal — every line is copy-paste</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Open your terminal and run these one at a time, waiting for each to finish.</p>
+
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">terminal</span><button class="copy-btn" data-copy="npm install -g vercel">copy</button></div>
+          <pre><span class="prompt">$</span> npm install -g vercel
+<span class="out">…installs with no red error text (yellow warnings are fine)</span></pre>
+        </div>
+
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">terminal</span><button class="copy-btn" data-copy="vercel login">copy</button></div>
+          <pre><span class="prompt">$</span> vercel login
+<span class="out">…enter your email, click the confirmation link Vercel emails you</span>
+<span class="out">Success!</span></pre>
+        </div>
+
+        <p>Move into the folder you unzipped (adjust the path to match where you put it):</p>
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">terminal</span><button class="copy-btn" data-copy="cd Desktop/scouting-dashboard">copy</button></div>
+          <pre><span class="prompt">$</span> cd Desktop/scouting-dashboard
+<span class="prompt">$</span> npm install
+<span class="out">…a progress bar, then finishes clean (1–2 minutes)</span></pre>
+        </div>
+
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">terminal</span><button class="copy-btn" data-copy="vercel">copy</button></div>
+          <pre><span class="prompt">$</span> vercel
+<span class="out">Set up and deploy? </span>y
+<span class="out">Which scope? </span>(press Enter)
+<span class="out">Link to existing project? </span>n
+<span class="out">Project's name? </span>(press Enter, or type kvmechelen-scouting-hub)
+<span class="out">Directory? </span>(press Enter for ./)
+<span class="out">✅  Preview: https://scouting-dashboard-xxxx.vercel.app</span></pre>
+        </div>
+
+        <div class="note">This first URL won't work correctly yet — there's no database or API keys attached. Expected at this stage; Steps 4–5 fix it.</div>
+        <div class="kv-block">
+          <div class="kv-row expect"><div class="kv-label">Expect</div><div>Your project now listed on <a href="https://vercel.com/dashboard" target="_blank" rel="noopener">vercel.com/dashboard</a> — this is the page you'll return to for the rest of the steps.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" id="step-4">
+      <div class="step-head">
+        <div class="step-numeral">04</div>
+        <div class="step-title">
+          <h2>Create/connect the PostgreSQL database</h2>
+          <div class="step-sub">One command — Neon provisions and connects automatically</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Still inside the <code>scouting-dashboard</code> folder in your terminal:</p>
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">terminal</span><button class="copy-btn" data-copy="vercel install neon">copy</button></div>
+          <pre><span class="prompt">$</span> vercel install neon
+<span class="out">Choose a plan: </span>Free (press Enter)
+<span class="out">…may open a browser tab — click Authorize</span>
+<span class="out">Database created and connected.</span></pre>
+        </div>
+        <p>This adds an environment variable named <code>DATABASE_URL</code> to your project automatically — exactly what the app looks for. Nothing else to do here.</p>
+        <div class="kv-block">
+          <div class="kv-row"><div class="kv-label">Click</div><div>Project → <strong>Storage</strong> tab</div></div>
+          <div class="kv-row expect"><div class="kv-label">Expect</div><div>A database listed there, provided by Neon.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" id="step-5">
+      <div class="step-head">
+        <div class="step-numeral">05</div>
+        <div class="step-title">
+          <h2>Exactly which environment variables</h2>
+          <div class="step-sub"><code>DATABASE_URL</code> is already set — six more to type in by hand</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <div class="kv-block">
+          <div class="kv-row"><div class="kv-label">Click</div><div>Project → <strong>Settings</strong> → <strong>Environment Variables</strong></div></div>
+          <div class="kv-row"><div class="kv-label">Do</div><div>For each row below: <strong>Add Another</strong> → type the Name exactly → paste the Value → keep all 3 environment boxes ticked → <strong>Save</strong></div></div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="envtable">
+            <thead><tr><th>Name</th><th>Value</th><th>Source</th></tr></thead>
+            <tbody>
+              <tr><td><code>SCOUTASTIC_API_TOKEN</code></td><td>your real Scoutastic token</td><td>Step 6</td></tr>
+              <tr><td><code>SCOUTASTIC_API_BASE_URL</code></td><td><code>https://kvmechelen.scoutastic.com/api/v1</code></td><td>fixed — copy exactly</td></tr>
+              <tr><td><code>SOFASCORE_PROVIDER</code></td><td><code>mock</code></td><td>fixed — see note below</td></tr>
+              <tr><td><code>CRON_SECRET</code></td><td>a long random string</td><td>generate below</td></tr>
+              <tr><td><code>BASIC_AUTH_USER</code></td><td>e.g. <code>kvmechelen</code></td><td>your choice — Step 9</td></tr>
+              <tr><td><code>BASIC_AUTH_PASSWORD</code></td><td>e.g. <code>Malinwa-Scouting-2026</code></td><td>your choice — Step 9</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note"><strong>About <code>mock</code>:</strong> SofaScore has no public API to connect to, so match ratings shown everywhere are realistic demo data, not live numbers — a limitation of the data source itself, not something this deployment can change.</div>
+
+        <p>To generate <code>CRON_SECRET</code> — a password only your app and Vercel's scheduler need to know:</p>
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">mac / linux</span><button class="copy-btn" data-copy="openssl rand -hex 32">copy</button></div>
+          <pre><span class="prompt">$</span> openssl rand -hex 32</pre>
+        </div>
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">windows powershell</span><button class="copy-btn" data-copy="-join ((48..57)+(65..90)+(97..122)|Get-Random -Count 32|%{[char]$_})">copy</button></div>
+          <pre><span class="prompt">$</span> -join ((48..57)+(65..90)+(97..122)|Get-Random -Count 32|%{[char]$_})</pre>
+        </div>
+        <p>Copy what it prints and paste it as the <code>CRON_SECRET</code> value.</p>
+
+        <div class="kv-block">
+          <div class="kv-row expect"><div class="kv-label">Expect</div><div>Seven rows total on the Environment Variables page: <code>DATABASE_URL</code> + the six above.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" id="step-6">
+      <div class="step-head">
+        <div class="step-numeral">06</div>
+        <div class="step-title">
+          <h2>Where the SCOUTASTIC API token goes</h2>
+          <div class="step-sub">Exactly one place — never in the zip, never in code</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Only the <code>SCOUTASTIC_API_TOKEN</code> environment variable from Step 5. It's read exclusively on Vercel's servers — checked directly during development that it never reaches a browser.</p>
+        <ul>
+          <li>No token yet? The app runs fine without one — it falls back to a realistic ~400-player demo dataset so every page still works.</li>
+          <li>Add the real token whenever you get it, then redeploy (<code>vercel --prod</code>, Step 10).</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="step" id="step-7">
+      <div class="step-head">
+        <div class="step-numeral">07</div>
+        <div class="step-title">
+          <h2>The daily 06:00 synchronization</h2>
+          <div class="step-sub">Nothing to configure — it's already built in</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p><code>vercel.json</code> already defines the schedule; Vercel reads it the moment you deploy.</p>
+        <div class="kv-block">
+          <div class="kv-row"><div class="kv-label">Click</div><div>Project → <strong>Settings</strong> → <strong>Cron Jobs</strong></div></div>
+          <div class="kv-row expect"><div class="kv-label">Expect</div><div>Three entries — two for <code>/api/cron/scoutastic-sync</code>, one for <code>/api/cron/weekly-update</code>.</div></div>
+        </div>
+        <div class="note">Two entries for the same sync is intentional, not a bug: "06:00 in Belgium" falls on two different UTC times across the year (daylight saving), so the app pings itself at both and quietly skips the one that isn't actually 06:00 locally.</div>
+      </div>
+    </section>
+
+    <section class="step" id="step-8">
+      <div class="step-head">
+        <div class="step-numeral">08</div>
+        <div class="step-title">
+          <h2>Confirm the database is persistent</h2>
+          <div class="step-sub">A 60-second check, once your site is live</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <ol>
+          <li>Open your live URL → <strong>Shortlists</strong> → <strong>+ Create Shortlist</strong> → name it "Test" → save.</li>
+          <li>Close the tab entirely (or open a different browser).</li>
+          <li>Go back to <strong>Shortlists</strong>.</li>
+        </ol>
+        <div class="kv-block">
+          <div class="kv-row expect"><div class="kv-label">Expect</div><div>Your "Test" shortlist is still there — confirming data lives in the real Neon Postgres database, not somewhere temporary.</div></div>
+        </div>
+        <p class="note">Feel free to delete the "Test" shortlist afterward.</p>
+      </div>
+    </section>
+
+    <section class="step" id="step-9">
+      <div class="step-head">
+        <div class="step-numeral">09</div>
+        <div class="step-title">
+          <h2>Keep the dashboard/API private</h2>
+          <div class="step-sub"><span class="badge opt">optional</span> free, already built in — no $150/mo add-on needed</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>By default, anyone with the URL can open the app. Vercel's own way to password-protect a <em>production</em> URL costs $150/month (a Pro-plan add-on) — not worth it here. This project ships its own free alternative instead.</p>
+        <p>You already added these two in Step 5:</p>
+        <div class="kv-block">
+          <div class="kv-row"><div class="kv-label">Vars</div><div><code>BASIC_AUTH_USER</code> and <code>BASIC_AUTH_PASSWORD</code></div></div>
+          <div class="kv-row expect"><div class="kv-label">Expect</div><div>Opening the live URL in an incognito window shows a native "Sign in" popup before anything loads.</div></div>
+        </div>
+        <p>Leave both blank instead if you'd rather keep the site open for now — everything else in this guide works exactly the same either way.</p>
+      </div>
+    </section>
+
+    <section class="step" id="step-10">
+      <div class="step-head">
+        <div class="step-numeral">10</div>
+        <div class="step-title">
+          <h2>Get the final HTTPS URL</h2>
+          <div class="step-sub">One command — this is the real, production deploy</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">terminal</span><button class="copy-btn" data-copy="vercel --prod">copy</button></div>
+          <pre><span class="prompt">$</span> vercel --prod
+<span class="out">✅  Production: https://kvmechelen-scouting-hub.vercel.app [copied to clipboard]</span></pre>
+        </div>
+        <p>That URL is your live dashboard — also always visible at the top of your project page, and under <strong>Settings → Domains</strong> (where a custom domain like <code>scouting.kvmechelen.be</code> can be attached later, entirely optional).</p>
+
+        <h3 style="font-size:16px;margin:26px 0 8px;">One last step — load the starting data</h3>
+        <p>The database is empty until seeded once. Get the value to paste from <strong>Settings → Environment Variables → <code>DATABASE_URL</code> → reveal → copy</strong> (starts with <code>postgres://</code>).</p>
+
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">mac / linux</span><button class="copy-btn" data-copy='DATABASE_URL="paste-here" npm run db:seed'>copy</button></div>
+          <pre><span class="prompt">$</span> DATABASE_URL="paste-here" npm run db:seed
+<span class="out">…Seed complete.  (~15–20 seconds)</span></pre>
+        </div>
+        <div class="terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><span class="terminal-label">windows powershell</span><button class="copy-btn" data-copy='$env:DATABASE_URL="paste-here"; npm run db:seed'>copy</button></div>
+          <pre><span class="prompt">$</span> $env:DATABASE_URL="paste-here"; npm run db:seed</pre>
+        </div>
+        <div class="kv-block">
+          <div class="kv-row expect"><div class="kv-label">Expect</div><div>Refreshing your live URL now shows real data on every page instead of an empty dashboard.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="checklist-section" id="checklist">
+      <div class="checklist-head">
+        <h2>Final Deployment Checklist</h2>
+        <div class="checklist-progress"><strong id="checkCount">0</strong> / 12 verified</div>
+      </div>
+      <p class="lede" style="color:var(--text-muted); margin:-8px 0 18px; max-width:60ch;">Go through this once, in order, before considering the dashboard live. Checks are saved in this browser.</p>
+
+      <ul class="check-list" id="checkList">
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">I created a Vercel account and can see my project on vercel.com/dashboard.</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text"><code>vercel install neon</code> finished, and the Storage tab shows a connected database.</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">Settings → Environment Variables shows all 7 variables (<code>DATABASE_URL</code>, <code>SCOUTASTIC_API_TOKEN</code>, <code>SCOUTASTIC_API_BASE_URL</code>, <code>SOFASCORE_PROVIDER</code>, <code>CRON_SECRET</code>, <code>BASIC_AUTH_USER</code>, <code>BASIC_AUTH_PASSWORD</code>).</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">My real Scoutastic API token is in <code>SCOUTASTIC_API_TOKEN</code> — or I deliberately left it blank to run on demo data for now.</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">Settings → Cron Jobs shows the 3 scheduled jobs.</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">I ran <code>vercel --prod</code> and got a real <code>https://….vercel.app</code> URL back.</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">I ran <code>npm run db:seed</code> once against the production <code>DATABASE_URL</code>, ending in "Seed complete."</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">The live URL shows real player data on every page — Home, Players, African Debutants, Top Performers, Shortlists — not empty.</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">I created a test shortlist, reloaded, and it was still there (Step 8 — persistence).</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">I set <code>BASIC_AUTH_USER</code>/<code>BASIC_AUTH_PASSWORD</code> — or made a deliberate, informed choice to leave the site open.</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">If protected: an incognito window shows the login popup, and the correct username/password opens the dashboard.</span></li>
+        <li class="check-item"><input type="checkbox"><span class="check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-text">The "↻ Sync SCOUTASTIC now" button works, and the Reports page shows a new entry afterward.</span></li>
+      </ul>
+
+      <div class="done-banner" id="doneBanner"><strong>All checked.</strong> The KV Mechelen Scouting Hub is live, backed by a persistent database, and syncing with Scoutastic automatically every day. Bookmark the URL — that's the link to share with the scouting department.</div>
+    </section>
+
+    <footer class="page-footer">
+      Full technical reference: <code>docs/DEPLOYMENT.md</code> in the project. Architecture notes: <code>docs/ARCHITECTURE.md</code>.
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function () {
+    // scrollspy
+    var sections = Array.prototype.slice.call(document.querySelectorAll('main section[id]'));
+    var links = Array.prototype.slice.call(document.querySelectorAll('.nav-list a'));
+    function onScroll() {
+      var pos = window.scrollY + 120;
+      var current = sections[0] && sections[0].id;
+      sections.forEach(function (s) { if (s.offsetTop <= pos) current = s.id; });
+      links.forEach(function (l) {
+        l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+      });
+    }
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    // copy buttons
+    document.querySelectorAll('.copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var text = btn.getAttribute('data-copy');
+        var reset = function () { btn.textContent = 'copy'; btn.classList.remove('copied'); };
+        function mark() { btn.textContent = 'copied'; btn.classList.add('copied'); setTimeout(reset, 1400); }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(mark).catch(mark);
+        } else {
+          mark();
+        }
+      });
+    });
+
+    // checklist with per-viewer localStorage persistence
+    var STORAGE_KEY = 'kvm-go-live-checklist-v1';
+    var items = Array.prototype.slice.call(document.querySelectorAll('.check-item input'));
+    var fill = document.getElementById('progressFill');
+    var progLabel = document.getElementById('progressLabel');
+    var checkCount = document.getElementById('checkCount');
+    var doneBanner = document.getElementById('doneBanner');
+
+    function loadState() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
+    function saveState(state) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+    function update() {
+      var checked = items.filter(function (i) { return i.checked; }).length;
+      var total = items.length;
+      fill.style.width = (checked / total * 100) + '%';
+      progLabel.textContent = checked + ' / ' + total + ' checked off';
+      checkCount.textContent = checked;
+      doneBanner.classList.toggle('show', checked === total);
+      items.forEach(function (i) { i.closest('.check-item').classList.toggle('checked', i.checked); });
+    }
+
+    var saved = loadState();
+    items.forEach(function (input, idx) {
+      input.checked = !!saved[idx];
+      input.addEventListener('change', function () {
+        var state = items.map(function (i) { return i.checked; });
+        saveState(state);
+        update();
+      });
+    });
+    update();
+  })();
+</script>
